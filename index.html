@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORC Portugal · Regata</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f0f4f8;
+    --panel: #ffffff;
+    --border: #cbd5e1;
+    --accent: #0052a3;
+    --accent2: #e05c1a;
+    --win: #16a34a;
+    --lose: #dc2626;
+    --warn: #d97706;
+    --text: #0f172a;
+    --muted: #64748b;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+    --display: 'Bebas Neue', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    background-image:
+      radial-gradient(ellipse 80% 40% at 50% -10%, rgba(0,82,163,0.05) 0%, transparent 60%),
+      repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(148,163,184,0.2) 40px),
+      repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(148,163,184,0.2) 40px);
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 3px solid var(--accent);
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+    position: sticky; top: 0; z-index: 10;
+  }
+
+  .logo { font-family: var(--display); font-size: 1.8rem; color: var(--accent); letter-spacing: 0.05em; line-height: 1; }
+  .logo span { color: var(--accent2); }
+  .subtitle { font-family: var(--mono); font-size: 0.55rem; color: var(--muted); letter-spacing: 0.15em; text-transform: uppercase; }
+
+  .step-indicator {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+  }
+
+  .step-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: background 0.3s;
+  }
+
+  .step-dot.active { background: var(--accent); }
+  .step-dot.done   { background: var(--win); }
+
+  /* ── SCREENS ── */
+  .screen { display: none; animation: fadeIn 0.3s ease; }
+  .screen.active { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  main { max-width: 900px; margin: 0 auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1.2rem; }
+
+  .section-label { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase; margin-bottom: 0.6rem; }
+
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 1.2rem 1.4rem; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+
+  /* ── SCREEN 1: Boat Selection ── */
+  .boat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.6rem;
+  }
+
+  .boat-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+
+  .boat-chip:hover { border-color: var(--accent); background: rgba(0,82,163,0.03); }
+
+  .boat-chip.selected {
+    border-color: var(--accent);
+    background: rgba(0,82,163,0.07);
+  }
+
+  .chip-check {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-radius: 3px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .boat-chip.selected .chip-check {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .chip-check::after {
+    content: '';
+    display: none;
+    width: 5px; height: 9px;
+    border: 2px solid #fff;
+    border-top: none; border-left: none;
+    transform: rotate(45deg) translateY(-1px);
+  }
+
+  .boat-chip.selected .chip-check::after { display: block; }
+
+  .chip-info { flex: 1; min-width: 0; }
+
+  .chip-name {
+    font-family: var(--display);
+    font-size: 1rem;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .chip-model {
+    font-family: var(--mono);
+    font-size: 0.55rem;
+    color: var(--muted);
+    margin-top: 0.15rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .primary-btn {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    font-family: var(--display);
+    font-size: 1.3rem;
+    letter-spacing: 0.12em;
+    padding: 0.85rem;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+  }
+
+  .primary-btn:hover { background: #003d7a; transform: translateY(-1px); }
+  .primary-btn:active { transform: translateY(0); }
+  .primary-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+
+  /* ── SCREEN 2: Countdown ── */
+  .countdown-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem;
+    gap: 1.5rem;
+  }
+
+  .countdown-phase {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .countdown-display {
+    font-family: var(--display);
+    font-size: 8rem;
+    line-height: 1;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    transition: color 0.3s;
+    text-align: center;
+  }
+
+  .countdown-display.warn  { color: var(--warn); }
+  .countdown-display.go    { color: var(--win); }
+  .countdown-display.race  { color: var(--text); font-size: 5rem; }
+
+  .countdown-subtitle {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  .timer-btns {
+    display: flex;
+    gap: 0.8rem;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .timer-btn {
+    flex: 1;
+    padding: 0.8rem;
+    border: none;
+    border-radius: 2px;
+    font-family: var(--display);
+    font-size: 1.1rem;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .timer-btn.start  { background: var(--win);  color: #fff; }
+  .timer-btn.stop   { background: var(--warn); color: #fff; }
+  .timer-btn.reset  { background: var(--border); color: var(--text); }
+
+  .timer-btn:hover { filter: brightness(0.9); }
+
+  .participating-boats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    justify-content: center;
+  }
+
+  .boat-pill {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.1em;
+    padding: 0.25rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--muted);
+    background: var(--panel);
+  }
+
+  /* ── SCREEN 3: Finish Recording ── */
+  .race-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .race-elapsed {
+    font-family: var(--display);
+    font-size: 2.5rem;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+    line-height: 1;
+  }
+
+  .race-elapsed-label {
+    font-family: var(--mono);
+    font-size: 0.55rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .finish-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.7rem;
+  }
+
+  .finish-btn {
+    padding: 1rem 0.8rem;
+    border: 2px solid var(--border);
+    border-radius: 3px;
+    background: var(--panel);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+    position: relative;
+  }
+
+  .finish-btn:hover:not(.finished) {
+    border-color: var(--accent2);
+    background: rgba(224,92,26,0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+
+  .finish-btn.finished {
+    border-color: var(--win);
+    background: rgba(22,163,74,0.05);
+    cursor: default;
+  }
+
+  .finish-btn-pos {
+    font-family: var(--display);
+    font-size: 0.9rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    line-height: 1;
+  }
+
+  .finish-btn-name {
+    font-family: var(--display);
+    font-size: 1.4rem;
+    color: var(--text);
+    letter-spacing: 0.04em;
+    line-height: 1.1;
+    margin-top: 0.2rem;
+  }
+
+  .finish-btn.finished .finish-btn-name { color: var(--win); }
+
+  .finish-btn-model {
+    font-family: var(--mono);
+    font-size: 0.5rem;
+    color: var(--muted);
+    margin-top: 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .finish-time-badge {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--win);
+    margin-top: 0.4rem;
+  }
+
+  .finish-pos-badge {
+    position: absolute;
+    top: 0.4rem; right: 0.5rem;
+    font-family: var(--display);
+    font-size: 1.2rem;
+    color: var(--win);
+    opacity: 0.6;
+  }
+
+  .dnf-btn {
+    font-family: var(--mono);
+    font-size: 0.55rem;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    background: transparent;
+    border: 1px dashed var(--border);
+    border-radius: 2px;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+    margin-top: 0.4rem;
+    display: block;
+    width: 100%;
+    text-transform: uppercase;
+    transition: all 0.15s;
+  }
+
+  .dnf-btn:hover { border-color: var(--lose); color: var(--lose); }
+
+  .finish-btn.dnf {
+    border-color: var(--border);
+    background: #fafafa;
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .finish-btn.dnf .finish-btn-name { color: var(--muted); text-decoration: line-through; }
+
+  /* ── SCREEN 4: Results ── */
+  .results-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+  }
+
+  .results-table th {
+    text-align: left;
+    font-size: 0.55rem;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding: 0.5rem 0.7rem;
+    border-bottom: 2px solid var(--border);
+  }
+
+  .results-table td {
+    padding: 0.65rem 0.7rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+
+  .results-table tr:last-child td { border-bottom: none; }
+
+  .results-table tr.winner-row td { background: rgba(22,163,74,0.05); }
+
+  .pos-num {
+    font-family: var(--display);
+    font-size: 1.4rem;
+    color: var(--muted);
+    line-height: 1;
+  }
+
+  .pos-num.first  { color: #ca8a04; }
+  .pos-num.second { color: var(--muted); }
+  .pos-num.third  { color: #b45309; }
+
+  .boat-name-cell {
+    font-family: var(--display);
+    font-size: 1.1rem;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .corrected-time {
+    font-family: var(--mono);
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .delta-cell { color: var(--muted); }
+  .delta-cell.winner { color: var(--win); font-weight: 600; }
+
+  .dnf-cell { color: var(--muted); font-style: italic; }
+
+  /* Scoring row in results */
+  .scoring-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    align-items: flex-end;
+  }
+
+  .scoring-group { flex: 1; min-width: 140px; }
+
+  .scoring-group label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 0.55rem;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+  }
+
+  .score-select {
+    width: 100%;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    padding: 0.5rem 0.7rem;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.6rem center;
+    background-color: #f8fafc;
+  }
+
+  .score-select:focus { border-color: var(--accent); }
+
+  .new-race-btn {
+    width: 100%;
+    background: transparent;
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    font-family: var(--display);
+    font-size: 1.1rem;
+    letter-spacing: 0.12em;
+    padding: 0.7rem;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+    margin-top: 0.5rem;
+  }
+
+  .new-race-btn:hover { background: var(--accent); color: #fff; }
+
+  /* GO flash */
+  .go-flash {
+    position: fixed; inset: 0;
+    background: var(--win);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--display);
+    font-size: 12rem;
+    color: #fff;
+    letter-spacing: 0.05em;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s;
+  }
+
+  .go-flash.show { opacity: 1; pointer-events: auto; }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    .countdown-display { font-size: 6rem; }
+    .countdown-display.race { font-size: 4rem; }
+    .finish-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="go-flash" id="goFlash">GO!</div>
+
+<header>
+  <div>
+    <div class="logo">ORC <span>Regata</span></div>
+    <div class="subtitle">Race Timer · Portugal · 2026</div>
+  </div>
+  <div class="step-indicator">
+    <div class="step-dot active" id="dot1"></div>
+    <div class="step-dot" id="dot2"></div>
+    <div class="step-dot" id="dot3"></div>
+    <div class="step-dot" id="dot4"></div>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════
+     SCREEN 1 — Boat Selection
+══════════════════════════════════════════════ -->
+<div class="screen active" id="screen1">
+<main>
+  <div class="card">
+    <div class="section-label">Select Participating Boats</div>
+    <div class="boat-grid" id="boatGrid"></div>
+  </div>
+  <button class="primary-btn" id="startSetupBtn" onclick="goToCountdown()" disabled>
+    PROCEED TO START →
+  </button>
+</main>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SCREEN 2 — Countdown
+══════════════════════════════════════════════ -->
+<div class="screen" id="screen2">
+<main>
+  <div class="card">
+    <div class="countdown-wrap">
+      <div class="countdown-phase" id="countdownPhase">PRE-START COUNTDOWN</div>
+      <div class="countdown-display" id="countdownDisplay">0:05</div>
+      <div class="countdown-subtitle" id="countdownSubtitle">Press START when ready</div>
+      <div class="timer-btns">
+        <button class="timer-btn start" id="startStopBtn" onclick="toggleTimer()">START</button>
+        <button class="timer-btn reset" onclick="resetTimer()">RESET</button>
+      </div>
+      <div class="participating-boats" id="participatingPills"></div>
+    </div>
+  </div>
+</main>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SCREEN 3 — Race / Finish Recording
+══════════════════════════════════════════════ -->
+<div class="screen" id="screen3">
+<main>
+  <div class="card">
+    <div class="race-header">
+      <div>
+        <div class="race-elapsed-label">Race Elapsed</div>
+        <div class="race-elapsed" id="raceElapsed">00:00:00</div>
+      </div>
+      <div style="text-align:right">
+        <div class="race-elapsed-label">Finished</div>
+        <div class="race-elapsed" id="finishedCount" style="font-size:1.8rem">0 / 0</div>
+      </div>
+    </div>
+    <div class="section-label">Tap to record finish time</div>
+    <div class="finish-grid" id="finishGrid"></div>
+  </div>
+  <button class="primary-btn" id="viewResultsBtn" onclick="goToResults()" disabled>
+    VIEW RESULTS →
+  </button>
+</main>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     SCREEN 4 — Results
+══════════════════════════════════════════════ -->
+<div class="screen" id="screen4">
+<main>
+  <div class="card">
+    <div class="section-label">Scoring</div>
+    <div class="scoring-row">
+      <div class="scoring-group">
+        <label>Race Type</label>
+        <select class="score-select" id="raceTypeSelect" onchange="onScoringChange()">
+          <option value="coastal">Coastal / Long Distance</option>
+          <option value="wl">Windward / Leeward</option>
+        </select>
+      </div>
+      <div class="scoring-group">
+        <label>Wind Level</label>
+        <select class="score-select" id="windSelect" onchange="onScoringChange()">
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-label">Results</div>
+    <table class="results-table" id="resultsTable">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Boat</th>
+          <th>Elapsed</th>
+          <th>TCF</th>
+          <th>Corrected</th>
+          <th>Δ Leader</th>
+        </tr>
+      </thead>
+      <tbody id="resultsBody"></tbody>
+    </table>
+  </div>
+
+  <button class="new-race-btn" onclick="newRace()">↩ NEW RACE</button>
+</main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// BOAT DATA
+// ═══════════════════════════════════════════════
+const BOATS = {
+  BAMAK:      { label: 'BAMAK',          model: 'Sinergia 40',    coastal: { low: 0.8860, med: 1.1443, high: 1.2809 }, wl: { low: 0.6886, med: 0.9320, high: 1.0717 } },
+  TIRO:       { label: 'TIRO',           model: 'Grand Soleil 44',coastal: { low: 0.9615, med: 1.2267, high: 1.3591 }, wl: { low: 0.7453, med: 0.9927, high: 1.1158 } },
+  PARAGON_R:  { label: 'PARAGON R',      model: 'Rodman 42 Mod',  coastal: { low: 0.8826, med: 1.1485, high: 1.2836 }, wl: { low: 0.6846, med: 0.9352, high: 1.0736 } },
+  VICKY:      { label: 'VICKY',          model: 'Vrolijk 37',     coastal: { low: 0.8609, med: 1.1105, high: 1.2352 }, wl: { low: 0.6700, med: 0.9079, high: 1.0356 } },
+  SUPER_ACOR: { label: 'SUPER AÇOR XIS', model: 'X-41',           coastal: { low: 0.9313, med: 1.1859, high: 1.3175 }, wl: { low: 0.7248, med: 0.9701, high: 1.1052 } },
+  WINE_DECK:  { label: 'WINE DECK',      model: 'Nautor Swan',    coastal: { low: 0.8240, med: 1.0739, high: 1.2034 }, wl: { low: 0.6401, med: 0.8781, high: 1.0119 } },
+  EAGLE_III:  { label: 'EAGLE III',      model: 'Landmark 43',    coastal: { low: 0.9982, med: 1.2592, high: 1.4063 }, wl: { low: 0.7786, med: 1.0313, high: 1.1657 } },
+  FUNBEL:     { label: 'FUNBEL',         model: '',               coastal: { low: 0.9149, med: 1.1963, high: 1.3405 }, wl: { low: 0.7056, med: 0.9682, high: 1.1200 } },
+  WHOS_NEXT:  { label: "WHO'S NEXT",     model: 'Comet 41S Mod',  coastal: { low: 0.9018, med: 1.1682, high: 1.3092 }, wl: { low: 0.6998, med: 0.9516, high: 1.0926 } },
+};
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let selectedBoats = new Set();
+let timerInterval = null;
+let countdownSecs = 5; // DEBUG: 5 seconds (change to 300 for real 5min)
+let countdownRemaining = countdownSecs;
+let timerRunning = false;
+let raceStartTime = null;
+let raceInterval = null;
+let finishTimes = {}; // boatKey -> elapsed seconds
+let dnfBoats = new Set();
+let finishOrder = 0;
+
+// ═══════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════
+function windKey() {
+  const w = document.getElementById('windSelect').value;
+  return w === 'medium' ? 'med' : w;
+}
+
+function getTcf(key) {
+  const b = BOATS[key]; if (!b) return null;
+  const rt = document.getElementById('raceTypeSelect').value;
+  const v = rt === 'coastal' ? b.coastal[windKey()] : b.wl[windKey()];
+  return (v !== undefined && v !== null) ? v : null;
+}
+
+function fmtCountdown(s) {
+  const m = Math.floor(s / 60), sec = s % 60;
+  return `${m}:${String(sec).padStart(2,'0')}`;
+}
+
+function fmtElapsed(s) {
+  s = Math.round(s);
+  return `${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+}
+
+function fmtMargin(s) {
+  s = Math.abs(Math.round(s));
+  const m = Math.floor(s/60), sec = s%60;
+  return m > 0 ? `+${m}m ${String(sec).padStart(2,'0')}s` : `+${sec}s`;
+}
+
+function setScreen(n) {
+  document.querySelectorAll('.screen').forEach((s,i) => s.classList.toggle('active', i === n-1));
+  [1,2,3,4].forEach(i => {
+    const dot = document.getElementById(`dot${i}`);
+    dot.classList.toggle('active', i === n);
+    dot.classList.toggle('done', i < n);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// SCREEN 1 — BOAT SELECTION
+// ═══════════════════════════════════════════════
+function buildBoatGrid() {
+  const grid = document.getElementById('boatGrid');
+  grid.innerHTML = '';
+  Object.entries(BOATS).forEach(([key, boat]) => {
+    const chip = document.createElement('div');
+    chip.className = 'boat-chip';
+    chip.dataset.key = key;
+    chip.innerHTML = `
+      <div class="chip-check"></div>
+      <div class="chip-info">
+        <div class="chip-name">${boat.label}</div>
+        <div class="chip-model">${boat.model}</div>
+      </div>`;
+    chip.onclick = () => toggleBoat(key, chip);
+    grid.appendChild(chip);
+  });
+}
+
+function toggleBoat(key, chip) {
+  if (selectedBoats.has(key)) {
+    selectedBoats.delete(key);
+    chip.classList.remove('selected');
+  } else {
+    selectedBoats.add(key);
+    chip.classList.add('selected');
+  }
+  document.getElementById('startSetupBtn').disabled = selectedBoats.size < 2;
+}
+
+// ═══════════════════════════════════════════════
+// SCREEN 2 — COUNTDOWN
+// ═══════════════════════════════════════════════
+function goToCountdown() {
+  if (selectedBoats.size < 2) return;
+  countdownRemaining = countdownSecs;
+  timerRunning = false;
+  updateCountdownDisplay();
+
+  // Pills
+  const pills = document.getElementById('participatingPills');
+  pills.innerHTML = '';
+  selectedBoats.forEach(key => {
+    const pill = document.createElement('div');
+    pill.className = 'boat-pill';
+    pill.textContent = BOATS[key].label;
+    pills.appendChild(pill);
+  });
+
+  setScreen(2);
+}
+
+function updateCountdownDisplay() {
+  const el = document.getElementById('countdownDisplay');
+  el.textContent = fmtCountdown(countdownRemaining);
+  el.className = 'countdown-display';
+  if (countdownRemaining <= 60 && countdownRemaining > 10) el.classList.add('warn');
+  if (countdownRemaining <= 10) el.classList.add('warn');
+  if (countdownRemaining === 0) el.classList.add('go');
+}
+
+function toggleTimer() {
+  if (timerRunning) {
+    clearInterval(timerInterval);
+    timerRunning = false;
+    document.getElementById('startStopBtn').textContent = 'RESUME';
+    document.getElementById('startStopBtn').className = 'timer-btn start';
+  } else {
+    timerRunning = true;
+    document.getElementById('startStopBtn').textContent = 'PAUSE';
+    document.getElementById('startStopBtn').className = 'timer-btn stop';
+    timerInterval = setInterval(() => {
+      countdownRemaining--;
+      updateCountdownDisplay();
+      if (countdownRemaining <= 0) {
+        clearInterval(timerInterval);
+        timerRunning = false;
+        triggerStart();
+      }
+    }, 1000);
+  }
+}
+
+function resetTimer() {
+  clearInterval(timerInterval);
+  timerRunning = false;
+  countdownRemaining = countdownSecs;
+  updateCountdownDisplay();
+  document.getElementById('startStopBtn').textContent = 'START';
+  document.getElementById('startStopBtn').className = 'timer-btn start';
+  document.getElementById('countdownPhase').textContent = 'PRE-START COUNTDOWN';
+  document.getElementById('countdownSubtitle').textContent = 'Press START when ready';
+}
+
+function triggerStart() {
+  // Flash GO
+  const flash = document.getElementById('goFlash');
+  flash.classList.add('show');
+  setTimeout(() => {
+    flash.classList.remove('show');
+    goToRace();
+  }, 800);
+}
+
+// ═══════════════════════════════════════════════
+// SCREEN 3 — RACE / FINISH
+// ═══════════════════════════════════════════════
+function goToRace() {
+  raceStartTime = Date.now();
+  finishTimes = {};
+  dnfBoats = new Set();
+  finishOrder = 0;
+
+  // Build finish grid sorted by TCF descending (fastest = highest TCF = top button)
+  // Use coastal low as default sort since scoring not chosen yet
+  const sorted = Array.from(selectedBoats).sort((a, b) => {
+    const ta = BOATS[a].coastal.low || 0;
+    const tb = BOATS[b].coastal.low || 0;
+    return tb - ta; // highest TCF first
+  });
+
+  const grid = document.getElementById('finishGrid');
+  grid.innerHTML = '';
+  sorted.forEach((key, idx) => {
+    const btn = document.createElement('div');
+    btn.className = 'finish-btn';
+    btn.id = `finish_${key}`;
+    btn.dataset.key = key;
+    btn.innerHTML = `
+      <div class="finish-btn-pos">BOAT ${idx+1}</div>
+      <div class="finish-btn-name">${BOATS[key].label}</div>
+      <div class="finish-btn-model">${BOATS[key].model}</div>
+      <div class="finish-time-badge" id="ftime_${key}"></div>
+      <button class="dnf-btn" onclick="markDNF(event,'${key}')">DNF</button>`;
+    btn.onclick = (e) => {
+      if (e.target.classList.contains('dnf-btn')) return;
+      recordFinish(key);
+    };
+    grid.appendChild(btn);
+  });
+
+  document.getElementById('finishedCount').textContent = `0 / ${selectedBoats.size}`;
+  document.getElementById('viewResultsBtn').disabled = true;
+
+  // Race elapsed ticker
+  raceInterval = setInterval(() => {
+    const elapsed = (Date.now() - raceStartTime) / 1000;
+    document.getElementById('raceElapsed').textContent = fmtElapsed(elapsed);
+  }, 500);
+
+  setScreen(3);
+}
+
+function recordFinish(key) {
+  if (finishTimes[key] !== undefined || dnfBoats.has(key)) return;
+  const elapsed = (Date.now() - raceStartTime) / 1000;
+  finishTimes[key] = elapsed;
+  finishOrder++;
+
+  const btn = document.getElementById(`finish_${key}`);
+  btn.classList.add('finished');
+  document.getElementById(`ftime_${key}`).textContent = fmtElapsed(elapsed);
+
+  const posBadge = document.createElement('div');
+  posBadge.className = 'finish-pos-badge';
+  posBadge.textContent = `P${finishOrder}`;
+  btn.appendChild(posBadge);
+
+  updateFinishedCount();
+}
+
+function markDNF(e, key) {
+  e.stopPropagation();
+  if (finishTimes[key] !== undefined || dnfBoats.has(key)) return;
+  dnfBoats.add(key);
+  const btn = document.getElementById(`finish_${key}`);
+  btn.classList.add('dnf');
+  document.getElementById(`ftime_${key}`).textContent = 'DNF';
+  updateFinishedCount();
+}
+
+function updateFinishedCount() {
+  const done = Object.keys(finishTimes).length + dnfBoats.size;
+  const total = selectedBoats.size;
+  document.getElementById('finishedCount').textContent = `${done} / ${total}`;
+  document.getElementById('viewResultsBtn').disabled = done < total;
+}
+
+// ═══════════════════════════════════════════════
+// SCREEN 4 — RESULTS
+// ═══════════════════════════════════════════════
+function goToResults() {
+  clearInterval(raceInterval);
+  renderResults();
+  setScreen(4);
+}
+
+function onScoringChange() { renderResults(); }
+
+function renderResults() {
+  const rt = document.getElementById('raceTypeSelect').value;
+  const wk = windKey();
+
+  // Build results array
+  const rows = [];
+  selectedBoats.forEach(key => {
+    if (dnfBoats.has(key)) {
+      rows.push({ key, label: BOATS[key].label, elapsed: null, tcf: null, corrected: null, dnf: true });
+      return;
+    }
+    const et = finishTimes[key];
+    const tcf = getTcf(key);
+    const ct = (et !== undefined && tcf !== null) ? et * tcf : null;
+    rows.push({ key, label: BOATS[key].label, elapsed: et, tcf, corrected: ct, dnf: false });
+  });
+
+  // Sort: finished by corrected time, DNF at end
+  rows.sort((a, b) => {
+    if (a.dnf && b.dnf) return 0;
+    if (a.dnf) return 1;
+    if (b.dnf) return -1;
+    return a.corrected - b.corrected;
+  });
+
+  const tbody = document.getElementById('resultsBody');
+  tbody.innerHTML = '';
+  const leader = rows.find(r => !r.dnf);
+  const leaderCT = leader ? leader.corrected : null;
+
+  rows.forEach((row, idx) => {
+    const pos = row.dnf ? '—' : idx + 1;
+    const posClass = pos === 1 ? 'first' : pos === 2 ? 'second' : pos === 3 ? 'third' : '';
+    const delta = (!row.dnf && leaderCT !== null && row.corrected !== leaderCT)
+      ? fmtMargin(row.corrected - leaderCT) : (row.corrected === leaderCT ? '—' : '');
+
+    const tr = document.createElement('tr');
+    if (!row.dnf && idx === 0) tr.className = 'winner-row';
+    tr.innerHTML = `
+      <td><div class="pos-num ${posClass}">${pos}</div></td>
+      <td><div class="boat-name-cell">${row.label}</div></td>
+      <td>${row.elapsed !== null ? fmtElapsed(row.elapsed) : '<span class="dnf-cell">DNF</span>'}</td>
+      <td>${row.tcf !== null ? row.tcf.toFixed(4) : '<span class="dnf-cell">—</span>'}</td>
+      <td>${row.corrected !== null ? `<span class="corrected-time">${fmtElapsed(row.corrected)}</span>` : '<span class="dnf-cell">DNF</span>'}</td>
+      <td class="delta-cell ${idx===0&&!row.dnf?'winner':''}">${row.dnf ? '<span class="dnf-cell">DNF</span>' : delta}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function newRace() {
+  clearInterval(raceInterval);
+  clearInterval(timerInterval);
+  selectedBoats.clear();
+  finishTimes = {};
+  dnfBoats.clear();
+  finishOrder = 0;
+  countdownRemaining = countdownSecs;
+  timerRunning = false;
+  document.querySelectorAll('.boat-chip').forEach(c => c.classList.remove('selected'));
+  document.getElementById('startSetupBtn').disabled = true;
+  setScreen(1);
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+buildBoatGrid();
+</script>
+</body>
+</html>
